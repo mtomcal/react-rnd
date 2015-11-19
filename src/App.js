@@ -1,42 +1,30 @@
 import "./assets/javascripts/bootstrap";
 import "./assets/stylesheets/_bootstrap.scss";
 import React from 'react';
+import * as Query from './QueryContainer';
 import axios from 'axios';
 import _ from 'lodash';
 
-export default React.createClass({
-    getInitialState() {
-        return {
-            planets: []
-        }
-    },
-    fetchQuery(query) {
-        var defaultQuery = "http://swapi.co/api/planets";
-        var chosenQuery = query ? query : defaultQuery;
-        axios.get(chosenQuery)
-            .then((payload) => {
-                this.setState({
-                    "planets": this.state.planets.concat(payload.data.results),
-                    "next": payload.data.next
-                });
+export let App = React.createClass({
+    renderPlanets() {
+        const {res} = this.props.queryData;
+        return res.data.results.map((planet, index) => {
+                return <div className="col-sm-4" key={_.kebabCase(planet.name + " " + index)}>
+                    <h3>{planet.name}</h3>
+                    <p>{planet.terrain}</p>
+                </div>;
             });
     },
-    componentDidMount() {
-        this.fetchQuery();
-    },
-    renderPlanets() {
-        return this.state.planets.map((planet, index) => {
-            return <div className="col-sm-4" key={_.kebabCase(planet.name + " " + index)}>
-                <h3>{planet.name}</h3>
-                <p>{planet.terrain}</p>
-            </div>;
-        });
-    },
-    renderLoadMore() {
-        if (this.state.next) {
-            return <button onClick={() => this.fetchQuery(this.state.next)} className="btn">Load More</button>;
-        }
+    getMore() {
+        const {req, res} = this.props.queryData;
 
+        //Update the QueryContainer with variables and it will perform
+        //request then will update props with new results
+
+        this.props.queryData.setVariables({route: res.data.next});
+    },
+    renderNext() {
+        return <button onClick={this.getMore} className="btn btn-default">Next</button>;
     },
     render() {
         return (
@@ -54,9 +42,18 @@ export default React.createClass({
                     </div>
                 </div>
                 <div className="container-fluid">
-                    <div className="row pull-5">{this.renderLoadMore()}</div>
+                    <div className="row">
+                        <div className="col-sm-4 col-sm-offset-4">
+                            {this.renderLoadMore()}
+                        </div>
+                    </div>
                 </div>
             </div>
         );
     }
+});
+
+export default Query.createContainer(App, {
+    "method": "get",
+    "route": "http://swapi.co/api/planets?page=1"
 });
