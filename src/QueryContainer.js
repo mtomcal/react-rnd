@@ -81,8 +81,9 @@ export const createContainer = function(Component, options) {
 
         //Use this.props.queryData.setVariables to run more requests
         //once child component is mounted
+        //May use an optional callback on completion of request
 
-        setVariables(userRequest) {
+        setVariables(userRequest, cb) {
 
             //Use pre-supplied options to fill in defaults
 
@@ -95,7 +96,7 @@ export const createContainer = function(Component, options) {
                 "Illegal request options in setVariables"
             );
 
-            this.executeRequest(reqWithDefaults);
+            this.executeRequest(reqWithDefaults, cb);
         },
         getInitialState() {
             return {
@@ -107,12 +108,18 @@ export const createContainer = function(Component, options) {
 
         //Execute request with quester and store AJAX options as
         //this.props.queryData.req in child component
+        //Optional callback
 
-        executeRequest({method, route, payload, noCache}) {
+        executeRequest({method, route, payload, noCache}, cb) {
             this.setState({
                 req: {method, route, payload, noCache}
             });
-            quester({method, route, payload, noCache}, this.requestCallback);
+            quester({method, route, payload, noCache}, (err, res) => {
+                if(cb) {
+                    cb(err, res);
+                }
+                this.requestCallback(err, res);
+            });
         },
 
         //Callback handler for updating state on this Data component
