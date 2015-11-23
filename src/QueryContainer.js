@@ -5,10 +5,10 @@ import _ from 'lodash';
 
 //Basic object for storing query history
 //TODO Use ImmutableJS for tracking state of all query objects
-
 var inMemoryCache = {
-    
+
 };
+
 
 //A default error handling message component
 
@@ -33,9 +33,7 @@ var LoaderComponentBase = React.createClass({
  * Using a relay style createContainer higher order
  * component to assist in simplifying the AJAXing for components
  * Available options:
- * * method: "get", "post", "put" etc.
  * * route: "http://..."
- * * payload: If a post, then supply object of post body
  * * noCache: true or false to ignore cache
  * @param Component {ReactComponent}
  * @param options {Object}
@@ -45,8 +43,7 @@ export const createContainer = function(Component, options) {
     let {LoaderComponent, ErrorComponent} = options;
 
     invariant(
-        _.isString(options.route) &&
-        _.isString(options.method),
+        _.isString(options.route),
         "Undefined route and method props for createContainer"
     );
 
@@ -59,12 +56,12 @@ export const createContainer = function(Component, options) {
 
     //AJAX method
 
-    var quester = function ({method, route, payload, noCache}, cb) {
+    var quester = function ({method, route, noCache}, cb) {
         var cache = inMemoryCache[route];
         if (cache && !noCache) {
             return cb(null, cache);
         }
-        axios[method](route, payload)
+        axios[method](route)
             .then(function (res) {
                 inMemoryCache[route] = res;
                 cb(null, res);
@@ -91,8 +88,7 @@ export const createContainer = function(Component, options) {
 
             //Invariant checks
             invariant(
-                _.isString(reqWithDefaults.route) &&
-                _.isString(reqWithDefaults.method),
+                _.isString(reqWithDefaults.route),
                 "Illegal request options in setVariables"
             );
 
@@ -110,11 +106,11 @@ export const createContainer = function(Component, options) {
         //this.props.queryData.req in child component
         //Optional callback
 
-        executeRequest({method, route, payload, noCache}, cb) {
+        executeRequest({method, route, noCache}, cb) {
             this.setState({
-                req: {method, route, payload, noCache}
+                req: {method, route, noCache}
             });
-            quester({method, route, payload, noCache}, (err, res) => {
+            quester({method, route, noCache}, (err, res) => {
                 if(cb) {
                     cb(err, res);
                 }

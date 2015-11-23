@@ -1,5 +1,6 @@
 import React from 'react';
 import * as Query from './QueryContainer';
+import InfiniteList from './InfiniteList';
 import _ from 'lodash';
 /**
  * Planets
@@ -18,34 +19,6 @@ export const Planets = React.createClass({
             isError: React.PropTypes.bool
         })
     },
-    getInitialState() {
-        return {
-            loadingIcon: false
-        }
-    },
-    getMore() {
-        const {req, res} = this.props.queryData;
-
-        //Update the QueryContainer with variables and it will perform
-        //request then will update props with new results
-
-        this.props.queryData.setVariables({route: res.data.next}, () => {
-            //On Request completion
-
-            this.setState({loadingIcon: false});
-        });
-
-        //Trigger Loading icon while request has been triggered
-        this.setState({loadingIcon: true});
-    },
-    renderLoadingIcon() {
-        if (this.state.loadingIcon) {
-            return <span className="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span>;
-        }
-    },
-    renderNext() {
-        return <button onClick={this.getMore} className="btn btn-default">Next {this.renderLoadingIcon()}</button>;
-    },
     planets: [],
     renderPlanets() {
         const {res} = this.props.queryData;
@@ -61,21 +34,10 @@ export const Planets = React.createClass({
     },
     render() {
         return (
-        <div>
-            <div className="container-fluid">
-                <div className="row">
-                    {this.renderPlanets()}
-                </div>
-            </div>
-            <div className="container-fluid">
-                <div className="row">
-                    <div className="col-sm-4 col-sm-offset-4">
-                        {this.renderNext()}
-
-                    </div>
-                </div>
-            </div>
-        </div>);
+            <InfiniteList queryData={this.props.queryData}>
+                {this.renderPlanets()}
+            </InfiniteList>
+       );
     }
 });
 
