@@ -1,14 +1,7 @@
 import React from 'react';
-import axios from 'axios';
 import invariant from 'invariant';
 import _ from 'lodash';
-
-//Basic object for storing query history
-//TODO Use ImmutableJS for tracking state of all query objects
-var inMemoryCache = {
-
-};
-
+import * as QueryStore from './QueryStore';
 
 //A default error handling message component
 
@@ -47,30 +40,17 @@ export const createContainer = function(Component, options) {
         "Undefined route and method props for createContainer"
     );
 
+    invariant(
+        _.isString(options.key),
+        "Undefined Query Key"
+    );
+
     //Use default error and loading components if Error and Loader
     //not defined
 
     ErrorComponent = ErrorComponent || ErrorComponentBase;
     
     LoaderComponent = LoaderComponent || LoaderComponentBase;
-
-    //AJAX method
-
-    var quester = function ({method, route, noCache}, cb) {
-        var cache = inMemoryCache[route];
-        if (cache && !noCache) {
-            return cb(null, cache);
-        }
-        axios[method](route)
-            .then(function (res) {
-                inMemoryCache[route] = res;
-                cb(null, res);
-            })
-            .catch(function (err) {
-                console.log(err);
-                cb(err);
-            });
-    };
 
     //Returned Generic Wrapping data component for mediating AJAX requests
 
@@ -80,25 +60,33 @@ export const createContainer = function(Component, options) {
         //once child component is mounted
         //May use an optional callback on completion of request
 
+        options: _.assign({}, options),
+
         setVariables(userRequest, cb) {
 
             //Use pre-supplied options to fill in defaults
 
-            const reqWithDefaults = _.assign(options, userRequest);
+            this.options = _.assign(this.options, userRequest);
+
+            //Reset the key so that an uncached new query can be requested
+            if (!userRequest.key) {
+                this.options.key = null;
+            }
 
             //Invariant checks
             invariant(
-                _.isString(reqWithDefaults.route),
+                _.isString(this.options.route),
                 "Illegal request options in setVariables"
             );
 
-            this.executeRequest(reqWithDefaults, cb);
+            this.executeRequest(this.options, cb);
         },
         getInitialState() {
             return {
                 isLoaded: false,
                 isError: false,
-                setVariables: this.setVariables
+                setVariables: this.setVariables,
+                reset: () => this.setVariables(options)
             };
         },
 
@@ -106,11 +94,11 @@ export const createContainer = function(Component, options) {
         //this.props.queryData.req in child component
         //Optional callback
 
-        executeRequest({method, route, noCache}, cb) {
+        executeRequest({key, route, noCache}, cb) {
             this.setState({
-                req: {method, route, noCache}
+                req: {route, key, noCache}
             });
-            quester({method, route, noCache}, (err, res) => {
+            QueryStore.update({type: "Container", key, route, noCache}, (err, res) => {
                 if(cb) {
                     cb(err, res);
                 }
@@ -130,10 +118,27 @@ export const createContainer = function(Component, options) {
             });
         },
 
-        componentDidMount() {
-            this.executeRequest(options);
-        },
+        //Unsubscribe handler for state changes from QueryStore
+        unsubscribe: null,
 
+        componentDidMount() {
+
+            //Run the default web request onMount
+            this.executeRequest(this.options);
+
+            //Subscribe to QueryStore updates based on POST queries
+            //and update GET queries based on perceived mutations
+            this.unsubscribe = QueryStore.subscribe(() => {
+                let state = QueryStore.getState();
+                let value = state.get(this.options.key);
+                if (value) {
+                    this.requestCallback(null, value);
+                }
+            });
+        },
+        componentWillUnmount() {
+            this.unsubscribe();
+        },
         render() {
 
             //If theres an error in ajax request display error

@@ -34,14 +34,16 @@ export const Planets = React.createClass({
     },
     render() {
         return (
-            <InfiniteList queryData={this.props.queryData}>
-                {this.renderPlanets()}
+            <InfiniteList dataRef={(value) => { this.planets = value; this.setState({}); }} queryData={this.props.queryData}>
+                <div>
+                    {this.renderPlanets()}
+                </div>
             </InfiniteList>
        );
     }
 });
 
 export default Query.createContainer(Planets, {
-    "method": "get",
+    "key": "planets",
     "route": "http://swapi.co/api/planets?page=1"
 });

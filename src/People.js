@@ -7,7 +7,7 @@ import _ from 'lodash';
  *
  * Display People from Star Wars API
  * @class People
- * @construotor
+ * @constructor
  */
 export const People = React.createClass({
     propTypes: {
@@ -33,14 +33,16 @@ export const People = React.createClass({
     },
     render() {
         return (
-            <InfiniteList queryData={this.props.queryData}>
-                {this.renderPeople()}
+            <InfiniteList dataRef={(value) => { this.people = value; this.setState({}); }} queryData={this.props.queryData}>
+                <div>
+                    {this.renderPeople()}
+                </div>
             </InfiniteList>
         );
     }
 });
 
 export default Query.createContainer(People, {
-    "method": "get",
+    "key": "people",
     "route": "http://swapi.co/api/people?page=1"
 });

@@ -32,12 +32,15 @@ export default React.createClass({
 
         this.props.queryData.setVariables({route: res.data.next}, () => {
             //On Request completion
-
             this.setState({loadingIcon: false});
         });
 
         //Trigger Loading icon while request has been triggered
         this.setState({loadingIcon: true});
+    },
+    reset() {
+        this.props.dataRef([]);
+        this.props.queryData.reset();
     },
     renderLoadingIcon() {
         if (this.state.loadingIcon) {
@@ -46,6 +49,9 @@ export default React.createClass({
     },
     renderNext() {
         return <button onClick={this.getMore} className="btn btn-default">Next {this.renderLoadingIcon()}</button>;
+    },
+    renderReset() {
+        return <button onClick={this.reset} className="btn btn-default">Reset</button>;
     },
     render() {
         return (
@@ -59,6 +65,7 @@ export default React.createClass({
                     <div className="row">
                         <div className="col-sm-4 col-sm-offset-4">
                             {this.renderNext()}
+                            {this.renderReset()}
                         </div>
                     </div>
                 </div>
