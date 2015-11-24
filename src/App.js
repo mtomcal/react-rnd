@@ -19,6 +19,8 @@ export default React.createClass({
                 <AddStarship />
                 <hr/>
                 <Starships />
+                <hr/>
+                <Starships />
             </div>
         );
     }
