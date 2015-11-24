@@ -40,7 +40,7 @@ let updateSubscribers = function (store) {
     ComponentSubscribers = store;
 };
 
-let updateContainer = function (options, cb) {
+export let updateContainer = function (options, cb) {
     let {key, route, noCache} = options;
 
     if (!key) {
@@ -64,26 +64,17 @@ let updateContainer = function (options, cb) {
     return request(options, cacheCallback)
 };
 
-let updateMutation = function ({method, route, payload, affects}, cb) {
+export let updateMutation = function ({method, route, payload, affects}, cb) {
     invariant(_.isObject(payload), "Failed to provide payload of type Object");
     invariant(_.isString(route), "Failed to provide a route");
     request({method, route, payload}, (err, res) => {
         if (!err) {
-            emit(affects.concat([route]));
+            emit(affects);
         }
         if (cb) {
             cb(err, res);
         }
     });
-};
-
-export let update = function ({type, ...options}, cb) {
-    if (type === "Container") {
-        updateContainer(options, cb);
-    }
-    if (type === "Mutation") {
-        updateMutation(options, cb);
-    }
 };
 
 export let getState = function () {

@@ -66,10 +66,8 @@ export const createContainer = function(Component, options) {
         setVariables(userRequest, cb) {
 
             //Use pre-supplied options to fill in defaults
-
             this.options = this.options.merge(Immutable.fromJS(userRequest));
 
-            //Reset the key so that an uncached new query can be requested
             if (!userRequest.key) {
                 this.options = this.options.set('key', null);
             }
@@ -80,12 +78,12 @@ export const createContainer = function(Component, options) {
                 "Illegal request options in setVariables"
             );
 
-
             //Run a query execution with new variables provided by mounted component
             this.executeRequest(this.options.toJS(), cb);
         },
         forceFetch(cb) {
-            this.setVariables({key: null, noCache: true}, cb);
+            this.options = this.options.set('noCache', true);
+            this.executeRequest(this.options.toJS(), cb);
         },
         getInitialState() {
             return {
@@ -104,7 +102,7 @@ export const createContainer = function(Component, options) {
             this.setState({
                 req: {route, key, noCache}
             });
-            QueryStore.update({type: "Container", key, route, noCache}, (err, res) => {
+            QueryStore.updateContainer({key, route, noCache}, (err, res) => {
                 if(_.isFunction(cb)) {
                     cb(err, res);
                 }

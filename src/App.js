@@ -2,8 +2,8 @@ import "./assets/javascripts/bootstrap";
 import "./assets/stylesheets/_bootstrap.scss";
 import React from 'react';
 import _ from 'lodash';
-import Planets from './Planets';
-import People from './People';
+import Starships from './Starships';
+import AddStarship from './AddStarship';
 
 export default React.createClass({
     render() {
@@ -16,9 +16,9 @@ export default React.createClass({
                         </div>
                     </div>
                 </nav>
-                <Planets />
-                <hr />
-                <People />
+                <AddStarship />
+                <hr/>
+                <Starships />
             </div>
         );
     }
