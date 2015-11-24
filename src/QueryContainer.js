@@ -86,7 +86,7 @@ export const createContainer = function(Component, options) {
                 isLoaded: false,
                 isError: false,
                 setVariables: this.setVariables,
-                reset: () => this.setVariables(options)
+                reset: () => { this.options = _.assign({}, options); this.setVariables(this.options); }
             };
         },
 
