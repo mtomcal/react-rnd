@@ -1,14 +1,8 @@
 import React from 'react';
-import axios from 'axios';
 import invariant from 'invariant';
 import _ from 'lodash';
-
-//Basic object for storing query history
-//TODO Use ImmutableJS for tracking state of all query objects
-var inMemoryCache = {
-
-};
-
+import * as QueryStore from './QueryStore';
+import Immutable from 'immutable';
 
 //A default error handling message component
 
@@ -47,30 +41,17 @@ export const createContainer = function(Component, options) {
         "Undefined route and method props for createContainer"
     );
 
+    invariant(
+        _.isString(options.key),
+        "Undefined Query Key"
+    );
+
     //Use default error and loading components if Error and Loader
     //not defined
 
     ErrorComponent = ErrorComponent || ErrorComponentBase;
-    
+
     LoaderComponent = LoaderComponent || LoaderComponentBase;
-
-    //AJAX method
-
-    var quester = function ({method, route, noCache}, cb) {
-        var cache = inMemoryCache[route];
-        if (cache && !noCache) {
-            return cb(null, cache);
-        }
-        axios[method](route)
-            .then(function (res) {
-                inMemoryCache[route] = res;
-                cb(null, res);
-            })
-            .catch(function (err) {
-                console.log(err);
-                cb(err);
-            });
-    };
 
     //Returned Generic Wrapping data component for mediating AJAX requests
 
@@ -80,25 +61,36 @@ export const createContainer = function(Component, options) {
         //once child component is mounted
         //May use an optional callback on completion of request
 
+        options: Immutable.fromJS(options),
+
         setVariables(userRequest, cb) {
 
             //Use pre-supplied options to fill in defaults
+            this.options = this.options.merge(Immutable.fromJS(userRequest));
 
-            const reqWithDefaults = _.assign(options, userRequest);
+            if (!userRequest.key) {
+                this.options = this.options.set('key', null);
+            }
 
             //Invariant checks
             invariant(
-                _.isString(reqWithDefaults.route),
+                _.isString(this.options.get('route')),
                 "Illegal request options in setVariables"
             );
 
-            this.executeRequest(reqWithDefaults, cb);
+            //Run a query execution with new variables provided by mounted component
+            this.executeRequest(this.options.toJS(), cb);
+        },
+        forceFetch(cb) {
+            this.options = this.options.set('noCache', true);
+            this.executeRequest(this.options.toJS(), cb);
         },
         getInitialState() {
             return {
                 isLoaded: false,
                 isError: false,
-                setVariables: this.setVariables
+                setVariables: this.setVariables,
+                forceFetch: this.forceFetch
             };
         },
 
@@ -106,12 +98,12 @@ export const createContainer = function(Component, options) {
         //this.props.queryData.req in child component
         //Optional callback
 
-        executeRequest({method, route, noCache}, cb) {
+        executeRequest({key, route, noCache}, cb) {
             this.setState({
-                req: {method, route, noCache}
+                req: {route, key, noCache}
             });
-            quester({method, route, noCache}, (err, res) => {
-                if(cb) {
+            QueryStore.updateContainer({key, route, noCache}, (err, res) => {
+                if(_.isFunction(cb)) {
                     cb(err, res);
                 }
                 this.requestCallback(err, res);
@@ -130,18 +122,36 @@ export const createContainer = function(Component, options) {
             });
         },
 
-        componentDidMount() {
-            this.executeRequest(options);
+        //Responsible for responding to QueryStore updates from mutations
+        //Checks to see if a Query is affected by a mutation and if true
+        //do a force fetch
+        onStoreUpdate(affects) {
+            //Check if query key is in the affected keys array by some
+            //mutation fired off somewhere to retrigger an update
+            if (affects.indexOf(this.options.get('key')) > -1) {
+                this.forceFetch();
+            }
         },
 
+        //Unsubscribe handler for state changes from QueryStore
+        unsubscribe: null,
+
+        componentDidMount() {
+            //Run the default web request onMount
+            this.executeRequest(this.options.toJS());
+            //Subscribe to QueryStore updates based on POST queries
+            //and update GET queries based on perceived mutations
+            this.unsubscribe = QueryStore.subscribe(this.onStoreUpdate);
+        },
+        componentWillUnmount() {
+            this.unsubscribe();
+        },
         render() {
 
             //If theres an error in ajax request display error
-
             if (this.state.isError) return <ErrorComponent err={this.state.err} route={route} />;
 
-            //If loaded display child component
-
+            //If loaded, display child component
             if (this.state.isLoaded) return <Component queryData={this.state} {...this.props}/>;
 
             //Return loader component
