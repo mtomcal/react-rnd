@@ -2,6 +2,7 @@ import React from 'react';
 import invariant from 'invariant';
 import _ from 'lodash';
 import * as QueryStore from './QueryStore';
+import Immutable from 'immutable';
 
 //A default error handling message component
 
@@ -49,7 +50,7 @@ export const createContainer = function(Component, options) {
     //not defined
 
     ErrorComponent = ErrorComponent || ErrorComponentBase;
-    
+
     LoaderComponent = LoaderComponent || LoaderComponentBase;
 
     //Returned Generic Wrapping data component for mediating AJAX requests
@@ -60,33 +61,38 @@ export const createContainer = function(Component, options) {
         //once child component is mounted
         //May use an optional callback on completion of request
 
-        options: _.assign({}, options),
+        options: Immutable.fromJS(options),
 
         setVariables(userRequest, cb) {
 
             //Use pre-supplied options to fill in defaults
 
-            this.options = _.assign(this.options, userRequest);
+            this.options = this.options.merge(Immutable.fromJS(userRequest));
 
             //Reset the key so that an uncached new query can be requested
             if (!userRequest.key) {
-                this.options.key = null;
+                this.options = this.options.set('key', null);
             }
 
             //Invariant checks
             invariant(
-                _.isString(this.options.route),
+                _.isString(this.options.get('route')),
                 "Illegal request options in setVariables"
             );
 
-            this.executeRequest(this.options, cb);
+
+            //Run a query execution with new variables provided by mounted component
+            this.executeRequest(this.options.toJS(), cb);
+        },
+        forceFetch(cb) {
+            this.setVariables({key: null, noCache: true}, cb);
         },
         getInitialState() {
             return {
                 isLoaded: false,
                 isError: false,
                 setVariables: this.setVariables,
-                reset: () => { this.options = _.assign({}, options); this.setVariables(this.options); }
+                forceFetch: this.forceFetch
             };
         },
 
@@ -99,7 +105,7 @@ export const createContainer = function(Component, options) {
                 req: {route, key, noCache}
             });
             QueryStore.update({type: "Container", key, route, noCache}, (err, res) => {
-                if(cb) {
+                if(_.isFunction(cb)) {
                     cb(err, res);
                 }
                 this.requestCallback(err, res);
@@ -118,23 +124,26 @@ export const createContainer = function(Component, options) {
             });
         },
 
+        //Responsible for responding to QueryStore updates from mutations
+        //Checks to see if a Query is affected by a mutation and if true
+        //do a force fetch
+        onStoreUpdate(affects) {
+            //Check if query key is in the affected keys array by some
+            //mutation fired off somewhere to retrigger an update
+            if (affects.indexOf(this.options.get('key')) > -1) {
+                this.forceFetch();
+            }
+        },
+
         //Unsubscribe handler for state changes from QueryStore
         unsubscribe: null,
 
         componentDidMount() {
-
             //Run the default web request onMount
-            this.executeRequest(this.options);
-
+            this.executeRequest(this.options.toJS());
             //Subscribe to QueryStore updates based on POST queries
             //and update GET queries based on perceived mutations
-            this.unsubscribe = QueryStore.subscribe(() => {
-                let state = QueryStore.getState();
-                let value = state.get(this.options.key);
-                if (value) {
-                    this.requestCallback(null, value);
-                }
-            });
+            this.unsubscribe = QueryStore.subscribe(this.onStoreUpdate);
         },
         componentWillUnmount() {
             this.unsubscribe();
@@ -142,11 +151,9 @@ export const createContainer = function(Component, options) {
         render() {
 
             //If theres an error in ajax request display error
-
             if (this.state.isError) return <ErrorComponent err={this.state.err} route={route} />;
 
-            //If loaded display child component
-
+            //If loaded, display child component
             if (this.state.isLoaded) return <Component queryData={this.state} {...this.props}/>;
 
             //Return loader component

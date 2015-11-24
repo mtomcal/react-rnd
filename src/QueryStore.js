@@ -13,12 +13,10 @@ import _ from 'lodash';
 let QueryStore = Immutable.Map();
 let ComponentSubscribers = Immutable.List();
 
-
-
-let emit = function () {
+let emit = function (affects) {
     ComponentSubscribers.forEach(function (value) {
         if (_.isFunction(value)) {
-            value();
+            value(affects);
         }
     });
 };
@@ -68,7 +66,15 @@ let updateContainer = function (options, cb) {
 
 let updateMutation = function ({method, route, payload, affects}, cb) {
     invariant(_.isObject(payload), "Failed to provide payload of type Object");
-
+    invariant(_.isString(route), "Failed to provide a route");
+    request({method, route, payload}, (err, res) => {
+        if (!err) {
+            emit(affects.concat([route]));
+        }
+        if (cb) {
+            cb(err, res);
+        }
+    });
 };
 
 export let update = function ({type, ...options}, cb) {

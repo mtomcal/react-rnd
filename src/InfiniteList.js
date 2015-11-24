@@ -1,5 +1,6 @@
 import React from 'react';
 import * as Query from './QueryContainer';
+import * as QueryStore from './QueryStore';
 import _ from 'lodash';
 /**
  * Infinite List
@@ -38,20 +39,28 @@ export default React.createClass({
         //Trigger Loading icon while request has been triggered
         this.setState({loadingIcon: true});
     },
-    reset() {
-        this.props.dataRef([]);
-        this.props.queryData.reset();
-    },
     renderLoadingIcon() {
         if (this.state.loadingIcon) {
             return <span className="glyphicon glyphicon-refresh glyphicon-refresh-animate"></span>;
         }
     },
+    componentDidUpdate() {
+        console.log(arguments);
+    },
     renderNext() {
         return <button onClick={this.getMore} className="btn btn-default">Next {this.renderLoadingIcon()}</button>;
     },
-    renderReset() {
-        return <button onClick={this.reset} className="btn btn-default">Reset</button>;
+    renderFetch() {
+        var update = () => {
+            QueryStore.update({
+                type: "Mutation",
+                method: "post",
+                payload: {},
+                route: "",
+                affects: ["planets"]
+            })
+        };
+        return <button onClick={update} className="btn btn-default">Update</button>;
     },
     render() {
         return (
@@ -65,7 +74,7 @@ export default React.createClass({
                     <div className="row">
                         <div className="col-sm-4 col-sm-offset-4">
                             {this.renderNext()}
-                            {this.renderReset()}
+                            {this.renderFetch()}
                         </div>
                     </div>
                 </div>
