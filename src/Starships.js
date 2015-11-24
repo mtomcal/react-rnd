@@ -35,7 +35,7 @@ export const Starships = React.createClass({
     },
     render() {
         return (
-            <div>{this.renderStarships()}</div>
+            <div className="row">{this.renderStarships()}</div>
         );
     }
 });
