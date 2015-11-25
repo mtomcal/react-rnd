@@ -4,6 +4,7 @@ import React from 'react';
 import _ from 'lodash';
 import Starships from './Starships';
 import AddStarship from './AddStarship';
+import * as Favorites from './flux/Favorites';
 
 export default React.createClass({
     render() {

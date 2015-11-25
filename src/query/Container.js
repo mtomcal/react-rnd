@@ -1,7 +1,7 @@
 import React from 'react';
 import invariant from 'invariant';
 import _ from 'lodash';
-import * as QueryStore from './QueryStore';
+import * as QueryStore from './Store';
 import Immutable from 'immutable';
 
 //A default error handling message component

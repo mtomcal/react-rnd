@@ -1,6 +1,6 @@
 import React from 'react';
-import * as Query from './QueryContainer';
-import * as QueryStore from './QueryStore';
+import * as Query from './query/Container';
+import * as QueryStore from './query/Store';
 import _ from 'lodash';
 /**
  * Starships
