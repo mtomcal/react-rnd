@@ -9,16 +9,14 @@ import axios from 'axios';
 import Immutable from 'immutable';
 import invariant from 'invariant';
 import _ from 'lodash';
+import {EventEmitter} from 'events';
+
+var EE = new EventEmitter();
 
 let QueryStore = Immutable.Map();
-let ComponentSubscribers = Immutable.List();
 
 let emit = function (affects) {
-    ComponentSubscribers.forEach(function (value) {
-        if (_.isFunction(value)) {
-            value(affects);
-        }
-    });
+    EE.emit('update', affects);
 };
 
 let storeCache = function (store) {
@@ -34,10 +32,6 @@ let request = function ({method = "get", route, payload}, cb) {
             console.log(err);
             cb(err);
         });
-};
-
-let updateSubscribers = function (store) {
-    ComponentSubscribers = store;
 };
 
 export let updateContainer = function (options, cb) {
@@ -82,9 +76,8 @@ export let getState = function () {
 };
 
 export let subscribe = function (cb) {
-    var index = ComponentSubscribers.size;
-    updateSubscribers(ComponentSubscribers.set(index, cb));
+    EE.on('update', cb);
     return () => {
-        updateSubscribers(ComponentSubscribers.set(index, null));
+        EE.removeListener('update', cb);
     };
 };

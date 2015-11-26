@@ -1,37 +1,30 @@
 import Reflux from 'reflux';
 import Immutable from 'immutable';
 import Central from './Central';
+import CentralMixin from './CentralMixin';
 
 export let FavoriteActions = Reflux.createActions([
     "add",
     "remove"
 ]);
 
+window.Central = Central;
+
 export let FavoriteStore = Reflux.createStore({
     init() {
-        this.listenTo(Central, this.onUpdate);
         this.listenToMany(FavoriteActions);
     },
+    mixins: [CentralMixin],
     cursor: 'favorites',
-    getCursor(state) {
-        return state.get(this.cursor);
-    },
-    setCursor(value) {
-        return this.getCursor(this.getState()).set(this.cursor, value);
-    },
-    getState() {
-        return this.getCursor(Central.getState());
-    },
-    update(state) {
-        Central.update(this.setCursor(state));
-    },
-    onUpdate(oldState, newState) {
-        if (this.getCursor(oldState) !== this.getCursor(newState)) {
-            this.trigger(this.getState().toJS());
-        }
+    onChange() {
+        this.trigger(this.getState().toJS());
     },
     onAdd(key, value) {
         let state = this.getState();
+        if (state.get(key)) {
+            return this.update(state.set(key, null));
+
+        }
         this.update(state.set(key, value));
     }
 });
@@ -39,9 +32,29 @@ export let FavoriteStore = Reflux.createStore({
 
 
 
-FavoriteStore.listen(function (val) {
-    console.log(val);
-});
 
-FavoriteActions.add("first", "stuff");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
