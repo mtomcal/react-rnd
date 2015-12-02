@@ -68,7 +68,7 @@ export default React.createClass({
             payload: {
                 //Payload POST values
             },
-            affects: ['starships'] //Tells Query Store to Update Starships component
+            affects: ['starships'] //Tells Query Store to Update components with the "starships" key.
         }, (err, res) => {
         	//Optional callback on query completion
         });
@@ -89,6 +89,76 @@ export default React.createClass({
 ```
 
 Once the submit button is clicked for the form, it posts the data from the form to the API and notifies any child createContainer components "key"-ed to "starships" to run a fresh GET query to update the cache.
+
+####One Immutable Store Reflux
+
+Libraries such as [Omniscient]() and [Redux]() provide Immutable Functional ways to maintain a single Immutable Store to keep track of the overall state of an application. If a company has released production apps using multiple Flux Stores, it becomes challenging to refactor the app into these new implementations. 
+
+I have provided a Reflux implementation of a centralized "Redux"-like store and a mixin for upgrading existing Flux stores to utilize the centralized state in ```src/query/flux```.
+
+Let's setup a centralized Immutable Reflux store for keeping track of your favorite Star Wars ships.
+
+```
+import Reflux from 'reflux';
+import Immutable from 'immutable';
+
+//Create the Base Case Initial State
+let _schema = Immutable.Map({
+    "favorites": Immutable.Map({})
+});
+
+//Set the intitial state to the current store pointer
+let _store = _schema;
+
+//Add it the history list as the first entry
+let _history = Immutable.List([
+    _store
+]);
+
+//This keeps track of the timeline history of state trees when rewinding
+let delta = 0;
+
+export default Reflux.createStore({
+	//Return the private store method of master state tree
+    getState() {
+        return _store;
+    },
+    
+    //Central update method for updating the current _store 
+    //and adding to _history
+    update(store) {
+    
+    	 //replace the current _store with new store.
+        _store = store;
+        
+        //Trigger the last state with the new state variables
+        this.trigger(_history.slice(-1).get(0), store);
+        
+        //Add new store tree to history
+        _history = _history.push(store);
+        
+        //update delta of changes to stores over time.
+        delta = _history.size - 1;
+        
+    },
+    //Rewind state to a previous state.
+    rewind() {
+    	 //Set the new delta for going back in time
+        delta = delta - 1;
+        
+        //Get the store at the delta index
+        let store = _history.slice(delta).get(0);
+        
+        //Change current store to delta store
+        _store = store;
+        
+        //Update listeners with previous store and new store from the past
+        this.trigger(_history.slice(delta-1).get(0), store);
+    }
+});
+```
+
+
 
 
 
