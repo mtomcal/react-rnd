@@ -12,18 +12,17 @@ open http://localhost:3001
 ##Current Research
 Currently on display is a Star Wars Starship tracker. It allows for favoriting ships from the Star Wars Universe (data retrieved from [Star Wars API](http://swapi.co)). It supports typical CRUD operations for adding and deleting ships. 
 
-###Sub-Modules
 These are the current Data management modules I am testing. 
 
-####Query Container "RESTful Relay"
+###Query Container "RESTful Relay"
 
 *Dependencies: Axios, EventEmitter, ImmutableJS, Invariant, Lodash*
 
-The RESTful Relay project is meant to mimic somewhat Facebook's [Relay]() library but instead of GraphQL we use traditional REST API endpoints. I wish to make this module as simple and concise as possible to achieve RESTful API transactions with higher order components. 
+The RESTful Relay project is meant to mimic somewhat Facebook's [Relay](https://facebook.github.io/relay/) library but instead of GraphQL we use traditional REST API endpoints. I wish to make this module as simple and concise as possible to achieve RESTful API transactions with higher order components. 
 
 The ```src/query``` folder contains a Store and a Container component. 
 
-The Container component is similar to Relay's [createContainer]() higher-order component. In short, it is a function that takes a React component arg then takes an options object. The object contains the data to define the "route" to retrieve and a unique data "key" definition to label the route. The createContainer function will decorate the Starships component with a Data component that will run a GET request before loading the child. The query is cached for any child components calling the same endpoint "key"-ed to "starships".
+The Container component is similar to Relay's [createContainer](https://facebook.github.io/relay/docs/api-reference-relay-container.html) higher-order component. In short, it is a function that takes a React component arg then takes an options object. The object contains the data to define the "route" to retrieve and a unique data "key" definition to label the route. The createContainer function will decorate the Starships component with a Data component that will run a GET request before loading the child. The query is cached for any child components calling the same endpoint "key"-ed to "starships".
 
 ```
 //React component
@@ -90,9 +89,11 @@ export default React.createClass({
 
 Once the submit button is clicked for the form, it posts the data from the form to the API and notifies any child createContainer components "key"-ed to "starships" to run a fresh GET query to update the cache.
 
-####One Immutable Store Reflux
+###One Immutable Store Reflux
 
-Libraries such as [Omniscient]() and [Redux]() provide Immutable Functional ways to maintain a single Immutable Store to keep track of the overall state of an application. If a company has released production apps using multiple Flux Stores, it becomes challenging to refactor the app into these new implementations. 
+*Knowledge Prereqs: Please read [ImmutableJS](https://facebook.github.io/immutable-js/) docs*
+
+Libraries such as [Omniscient](http://omniscientjs.github.io/) and [Redux](http://redux.js.org/index.html) provide Immutable Functional ways to maintain a single Immutable Store to keep track of the overall state of an application. If a company has released production apps using multiple Flux Stores, it becomes challenging to refactor the app into these new implementations. 
 
 I have provided a Reflux implementation of a centralized "Redux"-like store and a mixin for upgrading existing Flux stores to utilize the centralized state in ```src/query/flux```.
 
@@ -158,9 +159,94 @@ export default Reflux.createStore({
 });
 ```
 
+For a centralized store, we use Immutable to create a data structure to store the application state. We use a single unified ```update()``` function to allow subscribing stateless child stores to update the central tree. We also keep track of the number changes "delta", the currently used state ```_store```, and a ```_history``` Immutable list to track the data structures. 
 
+Next, let's jump to the consuming stateless stores:
 
+```
+import Reflux from 'reflux';
+import Immutable from 'immutable';
+import Central from './Central';
+import CentralMixin from './CentralMixin';
 
+//Create actions for add/remove of Favorite Starships
+export let FavoriteActions = Reflux.createActions([
+    "add",
+    "remove"
+]);
+
+export let FavoriteStore = Reflux.createStore({
+	//Listen to the actions
+    init() {
+        this.listenToMany(FavoriteActions);
+    },
+    //Require the CentralMixin for consuming the central store
+    mixins: [CentralMixin],
+    //The cursor name for a key to use on the central Immutable store
+    cursor: 'favorites',
+    //Receive changes to state for the "favorites" cursor
+    onChange() {
+        this.trigger(this.getState().toJS());
+    },
+    //Handle toggling favorite ships.
+    onAdd(key, value) {
+    	 //Get cursor state
+        let state = this.getState();
+        //If key exists set key to null
+        if (state.get(key)) {
+            return this.update(state.set(key, null));
+        }
+        //If key doesnt exist set value
+        this.update(state.set(key, value));
+    }
+});
+```
+
+The stateless store provides only methods for accessing the central state for just that cursor. A cursor is a identifier like a key that keeps track of a subtree on the central state tree (like a key on an Object literal). 
+
+As for understanding what methods CentralMixin offers, I have created the following:
+
+```
+import Central from './Central';
+
+//Retrieves the Immutable key or "cursor" for the state
+let getCursor = function (cursor, state) {
+    return state.get(cursor);
+};
+//Sets the state at provided cursor key
+let setState = function (cursor, value) {
+    return Central.getState().set(cursor, value);
+};
+
+export default {
+	//Subscribe to the Central state
+    init() {
+        this.listenTo(Central, this._onUpdate);
+    },
+    //Provides a getState for a cursor on the child store
+    getState() {
+        return getCursor(this.cursor, Central.getState());
+    },
+    //An interface to update the central state at given cursor
+    update(state) {
+        Central.update(setState(this.cursor, state));
+    },
+    //Middleware for the onChange used by child stores to check 
+    //for whether the state changed for data on the central store
+    //at the given cursor
+    _onUpdate(oldState, newState) {
+        let oldCursorState = getCursor(this.cursor, oldState);
+        let newCursorState = getCursor(this.cursor, newState);
+        if (oldCursorState !== newCursorState) {
+            this.onChange();
+        }
+    }
+}
+```
+
+The CentralMixin allows a store to access, update, and check for changes for a subtree of the central store as defined by a cursor. The onChange() method is called only when the subtree is different. ImmutableJS allows for deep equality checking to see if changes have truly occurred. 
+
+In short, by restructuring Reflux stores to manage only the methods for accessing state rather than storing actual state, we can achieve [Reducer](http://redux.js.org/docs/basics/Reducers.html) like functionality as provided by libraries like [Redux](http://redux.js.org/index.html). By this, we can centralize all the state into one tree structure with ImmutableJS on one Store. 
 
 
 
